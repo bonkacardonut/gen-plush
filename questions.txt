@@ -1,0 +1,13 @@
+questions to keep in mind (9/27/26):
+-----------------------------
+- will problems arise when extracting text?
+- how will the model extract layered features (ex: face on a head)
+- how can we implement scaling?
+- when will the model know what pieces repeat and which don't?
+- can it identify between embroidery and felt?
+- how can we scale 2d conversion to 3d conversion?
+- what will we use to generate accurate sewing instructions?
+- should generate a preview of the pieces together + seperately
+- labelling the pieces by number
+- should we create a preview based on the generated instructions? 
+    - show a "3d model" preview

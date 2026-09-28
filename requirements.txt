@@ -1,0 +1,13 @@
+necessary libraries (9/27/26):
+---------------------
+- opencv-python
+- rembg
+- scikit-learn
+- scikit-image
+- shapely
+- numpy
+- scipy
+- matplotlib
+- svgwrite
+- cairosvg
+- jupyter
