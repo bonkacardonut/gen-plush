@@ -1,13 +1,23 @@
-necessary libraries (9/27/26):
----------------------
-- opencv-python
-- rembg
-- scikit-learn
-- scikit-image
-- shapely
-- numpy
-- scipy
-- matplotlib
-- svgwrite
-- cairosvg
-- jupyter
+# GenPlush dependencies (install with: pip install -r requirements.txt)
+# Use Python 3.12. Python 3.15 is too new for some of these libraries.
+
+# core
+numpy
+opencv-python
+pillow
+scikit-learn
+scikit-image
+scipy
+shapely
+matplotlib
+
+# pattern export
+svgwrite
+cairosvg
+
+# background removal: only needed for the first-draft notebook and the AI fallback
+rembg[cpu]
+
+# notebooks
+jupyter
+ipykernel

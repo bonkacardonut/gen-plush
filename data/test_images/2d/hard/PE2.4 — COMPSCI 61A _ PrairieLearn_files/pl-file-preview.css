@@ -1,0 +1,23 @@
+[id^='file-preview'] .file-status {
+  margin-bottom: 0px;
+  font-size: 0.8em;
+  color: var(--bs-secondary-color);
+}
+
+[id^='file-preview'] .file-preview-icon {
+  transition: transform 400ms;
+}
+
+[id^='file-preview'] .file-status-container button:not(.collapsed) .file-preview-icon {
+  transform: rotateX(180deg);
+}
+
+[id^='file-preview'] .file-preview-container {
+  overflow: auto;
+  max-height: 200px;
+}
+
+[id^='file-preview'] .file-preview-expand {
+  border-top-right-radius: 0;
+  border-top-left-radius: 0;
+}
