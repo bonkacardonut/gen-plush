@@ -136,9 +136,10 @@ def adjacent_pairs(labels):
     return np.unique(np.concatenate(pairs), axis=0)
 
 
-def merge_regions(labels, lab, min_area, merge_tol=12.0):
+def merge_regions(labels, lab, min_area, merge_tol=12.0, keep_contrast=30.0):
     """Greedy merge: always merge the most similar touching pair first.
-    Pairs merge if their mean colors are within merge_tol, or if either is smaller than min_area."""
+    Pairs merge if their mean colors are within merge_tol, or if one is smaller than
+    min_area AND not strongly contrasting (so a tiny black eye on a tan face survives)."""
     area, csum = region_stats(labels, lab)
     parent = np.arange(len(area))                       # union-find: who each region merged into
     nbrs = {i: set() for i in range(len(area))}
@@ -153,7 +154,7 @@ def merge_regions(labels, lab, min_area, merge_tol=12.0):
 
     def cost(a, b):
         d = np.linalg.norm(csum[a] / area[a] - csum[b] / area[b])
-        if min(area[a], area[b]) < min_area:
+        if min(area[a], area[b]) < min_area and d < keep_contrast:
             return d - 1000                              # tiny regions go first, to their closest color
         return d if d < merge_tol else None
 
@@ -183,11 +184,35 @@ def merge_regions(labels, lab, min_area, merge_tol=12.0):
     roots = np.array([find(i) for i in range(len(parent))])
     merged = roots[labels]
     merged[labels == 0] = 0
-    # tiny regions boxed in by lines on all sides had nobody to merge with: drop them
-    a2 = np.bincount(merged.ravel())
-    merged[(a2[merged] < min_area) & (merged > 0)] = 0
     return merged
 
+# ---------- 5. facial features drawn as lines ----------
+
+def feature_strokes(lines, regions, fg, min_px=15):
+    """Line pieces that sit inside ONE region and don't touch the cutout edge
+    (mouths, closed eyes, noses) become their own pieces instead of walls."""
+    edge = fg & ~cv2.erode(fg.astype(np.uint8), np.ones((3, 3), np.uint8)).astype(bool)
+    interior = (lines & ~edge).astype(np.uint8)
+    n, comp = cv2.connectedComponents(interior, connectivity=8)
+    out = regions.copy()
+    next_id = regions.max() + 1
+    ring_k = np.ones((5, 5), np.uint8)
+    for i in range(1, n):
+        stroke = comp == i
+        if stroke.sum() < min_px:
+            continue
+        ys, xs = np.nonzero(stroke)                      # work on a small crop for speed
+        y0, y1 = max(ys.min() - 3, 0), ys.max() + 4
+        x0, x1 = max(xs.min() - 3, 0), xs.max() + 4
+        s = stroke[y0:y1, x0:x1]
+        ring = cv2.dilate(s.astype(np.uint8), ring_k).astype(bool) & ~s
+        touches_edge = (ring & edge[y0:y1, x0:x1]).any()
+        neighbors = np.unique(regions[y0:y1, x0:x1][ring & ~lines[y0:y1, x0:x1]])
+        neighbors = neighbors[neighbors > 0]
+        if len(neighbors) == 1 and not touches_edge:
+            out[stroke] = next_id
+            next_id += 1
+    return out
 
 # ---------- 5. fill lines ----------
 
@@ -210,7 +235,7 @@ def relabel(labels):
 
 # ---------- all together ----------
 
-def segment(rgba, k=10, merge_tol=15.0, min_area_frac=0.002):
+def segment(rgba, k=10, merge_tol=20.0, min_area_frac=0.002):
     """rgba: output of remove_background. Returns (regions HxW int, lines HxW bool)."""
     rgb, fg = rgba[..., :3], rgba[..., 3] > 127
     lines = line_mask(rgb, fg)
@@ -218,6 +243,7 @@ def segment(rgba, k=10, merge_tol=15.0, min_area_frac=0.002):
     regions = color_regions(cluster, lines)
     regions = absorb_specks(regions, lines, min_px=max(20, 0.0003 * fg.sum()))
     regions = merge_regions(regions, lab, min_area=min_area_frac * fg.sum(), merge_tol=merge_tol)
+    regions = feature_strokes(lines, regions, fg)
     regions = relabel(fill_lines(regions, fg))
     return regions, lines
 
