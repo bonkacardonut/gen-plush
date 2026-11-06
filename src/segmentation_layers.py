@@ -136,7 +136,8 @@ def group_compartments(comps, comp_colors, group_tol):
 # ---------- all together ----------
 
 def segment_layers(rgba, k=10, merge_tol=20.0, min_area_frac=0.002,
-                   close_gaps_px=3, max_shape_frac=0.15, group_tol=10.0, detail_tol=15.0):
+                   close_gaps_px=3, max_shape_frac=0.15, group_tol=10.0, detail_tol=15.0,
+                   outline_reach_frac=0.008):
     """rgba: output of remove_background.
 
     Returns (pieces, stitch_lines):
@@ -178,8 +179,20 @@ def segment_layers(rgba, k=10, merge_tol=20.0, min_area_frac=0.002,
     groups = group_compartments(comps, comp_colors, group_tol)
 
     pieces, stitch = [], np.zeros_like(fg)
-    for g in sorted(groups, key=lambda g: -np.isin(comps, g).sum()):
+    # a shape only reaches a few pixels into its outline. Taking the whole outline makes
+    # shapes swallow the gaps between lobes (a clover turns into a blob).
+    reach = max(2, int(outline_reach_frac * min(fg.shape)))
+    reach_k = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (2 * reach + 1,) * 2)
+    join_k = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (4 * reach + 1,) * 2)
+    for gi, g in enumerate(sorted(groups, key=lambda g: -np.isin(comps, g).sum())):
         m = np.isin(comps, g)
+        if gi > 0:   # the biggest shape is the body: it keeps its full outline
+            core = (m & ~walls).astype(np.uint8)
+            core = cv2.morphologyEx(core, cv2.MORPH_CLOSE, join_k)    # rejoin parts split by inner lines
+            core = cv2.morphologyEx(core, cv2.MORPH_OPEN, reach_k)    # drop thin slivers
+            m = ndimage.binary_fill_holes(m & cv2.dilate(core, reach_k).astype(bool))
+            if m.sum() < min_area:
+                continue
         base_ids = {comp_base[c] for c in g}
         base_px = m & np.isin(flat, list(base_ids))
         pieces.append(dict(mask=m, lab=np.mean([comp_colors[c] for c in g], axis=0), layer=0,
