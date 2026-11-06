@@ -1,4 +1,22 @@
-.DS_Store
-__pycache__/
+# Python / environment
 .venv/
+__pycache__/
 .ipynb_checkpoints/
+.env
+
+# macOS
+.DS_Store
+
+# test images and generated outputs stay local
+data/
+experiments/**
+!experiments/**/
+!experiments/pattern/try_pattern.py
+!experiments/pattern/3m_pattern.pdf
+!experiments/pattern/4m_pattern.pdf
+
+# downloaded models
+*.onnx
+
+# future web app
+node_modules/
